@@ -30,7 +30,7 @@ jobs:
       - name: Prepare Briefcase HTML
         run: |
           mkdir -p www
-          cp Briefcase_Hearing-Timeline_Next-Step-Edit_SDM-1_BACKUP-FIX.html www/index.html
+          cp Briefcase_Hearing-Timeline_Next-Step-Edit_SDM-1.html www/index.html
 
       - name: Configure Capacitor
         run: |
