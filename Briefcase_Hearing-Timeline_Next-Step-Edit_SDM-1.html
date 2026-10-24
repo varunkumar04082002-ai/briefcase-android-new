@@ -151,34 +151,44 @@ async function exportData(){
   };
   const filename='briefcase-backup-'+iso(today())+'.json';
   const json=JSON.stringify(backup,null,2);
-  const blob=new Blob([json],{type:'application/json'});
-  const file=new File([blob],filename,{type:'application/json'});
 
   try{
-    // In a browser that supports sharing files, let the user choose a save destination.
+    // Native Android bridge: saves the JSON directly into the device Downloads folder.
+    // The bridge is added by the Android build workflow; it is not available in ordinary browsers.
+    if(window.BriefcaseNative && typeof window.BriefcaseNative.saveBackup==='function'){
+      const bytes=new TextEncoder().encode(json);
+      let binary='';
+      for(let i=0;i<bytes.length;i++)binary+=String.fromCharCode(bytes[i]);
+      const saved=window.BriefcaseNative.saveBackup(filename,btoa(binary));
+      if(saved){toast('Backup saved in your Downloads folder.');return;}
+      throw new Error('Android could not save the backup file.');
+    }
+
+    // Browser option: offer the Android/browser share sheet when supported.
+    const blob=new Blob([json],{type:'application/json'});
+    const file=new File([blob],filename,{type:'application/json'});
     if(navigator.share && navigator.canShare && navigator.canShare({files:[file]})){
       await navigator.share({title:'Briefcase Backup',text:'Briefcase backup file',files:[file]});
       toast('Choose an app or location to save the backup.');
       return;
     }
 
-    // Browser download fallback. Some Android WebViews block downloads; those need native APK support.
+    // Ordinary browser download fallback.
     const url=URL.createObjectURL(blob);
     const link=document.createElement('a');
     link.href=url;
     link.download=filename;
-    link.style.display='none';
     document.body.appendChild(link);
     link.click();
     link.remove();
     setTimeout(()=>URL.revokeObjectURL(url),60000);
-    toast('Download requested. If no file appears, open Briefcase in Chrome to export.');
+    toast('Backup download requested. Check your Downloads folder.');
   }catch(error){
     if(error && error.name==='AbortError'){
       toast('Backup saving cancelled.');
     }else{
       console.error('Briefcase backup export failed:',error);
-      toast('Backup could not be saved. Try opening Briefcase in Chrome.');
+      toast('Backup could not be saved. Your existing records are unchanged.');
     }
   }
 }
