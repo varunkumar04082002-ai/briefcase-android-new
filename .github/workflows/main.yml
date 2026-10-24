@@ -1,74 +1,71 @@
 name: Build Briefcase Android APK
 
 on:
-workflow_dispatch:
-push:
-branches:
-- main
+  workflow_dispatch:
+  push:
+    branches:
+      - main
 
 permissions:
-contents: read
+  contents: read
 
 jobs:
-build:
-runs-on: ubuntu-latest
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-steps:
-  - name: Checkout repository
-    uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
 
-  - name: Set up Node.js
-    uses: actions/setup-node@v4
-    with:
-      node-version: 22
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
 
-  - name: Set up Java
-    uses: actions/setup-java@v4
-    with:
-      distribution: temurin
-      java-version: '21'
+      - name: Prepare Briefcase HTML
+        run: |
+          mkdir -p www
+          cp Briefcase_Hearing-Timeline_Next-Step-Edit_SDM-1_BACKUP-FIX.html www/index.html
 
-  - name: Prepare Briefcase HTML
-    run: |
-      mkdir -p www
-      cp Briefcase_Hearing-Timeline_Next-Step-Edit_SDM-1_BACKUP-FIX.html www/index.html
+      - name: Configure Capacitor
+        run: |
+          cat > package.json <<'EOF'
+          {
+            "name": "briefcase-law-manager",
+            "version": "1.0.0",
+            "private": true
+          }
+          EOF
+          npm install @capacitor/core@7 @capacitor/cli@7 @capacitor/android@7
+          cat > capacitor.config.json <<'EOF'
+          {
+            "appId": "com.briefcase.lawmanager",
+            "appName": "Briefcase",
+            "webDir": "www"
+          }
+          EOF
 
-  - name: Configure Capacitor
-    run: |
-      cat > package.json <<'EOF'
-      {
-        "name": "briefcase-law-manager",
-        "version": "1.0.0",
-        "private": true
-      }
-      EOF
+      - name: Add Android platform
+        run: npx cap add android
 
-      npm install @capacitor/core@7 @capacitor/cli@7 @capacitor/android@7
+      - name: Sync Android project
+        run: npx cap sync android
 
-      cat > capacitor.config.json <<'EOF'
-      {
-        "appId": "com.briefcase.lawmanager",
-        "appName": "Briefcase",
-        "webDir": "www"
-      }
-      EOF
+      - name: Build APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
 
-  - name: Add Android platform
-    run: npx cap add android
-
-  - name: Sync Android project
-    run: npx cap sync android
-
-  - name: Build APK
-    run: |
-      cd android
-      chmod +x gradlew
-      ./gradlew assembleDebug
-
-  - name: Upload APK
-    uses: actions/upload-artifact@v4
-    with:
-      name: Briefcase-Android-APK
-      path: android/app/build/outputs/apk/debug/app-debug.apk
-      if-no-files-found: error
-      retention-days: 14
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Briefcase-Android-APK
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
